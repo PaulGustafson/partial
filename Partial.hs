@@ -9,8 +9,8 @@ import qualified Data.Maybe as D
 
 class Partial f a where
   map :: (b -> c) -> f a b -> f a c
-  mapMaybe  :: (b -> Maybe c) -> f a b -> f a c
-  ($) :: f a b -> a -> Maybe b
+  mapMaybe  :: (b -> Prelude.Maybe c) -> f a b -> f a c
+  ($) :: f a b -> a -> Prelude.Maybe b
   (.)  :: Partial g b => g b c -> f a b -> f a c
   g . f = Partial.mapMaybe (g Partial.$) f
 
@@ -19,24 +19,24 @@ instance (Ord k) => Partial M.Map k where
   mapMaybe = M.mapMaybe
   ($) = flip M.lookup
 
-newtype WList a b = WList { getList :: [b]} 
-instance Partial WList Int where
-  map f xs = WList (Prelude.map f (getList xs))
-  mapMaybe f xs = WList (D.mapMaybe f (getList xs))
+newtype List a b = List { getList :: [b]} 
+instance Partial Partial.List Int where
+  map f xs = Partial.List (Prelude.map f (getList xs))
+  mapMaybe f xs = Partial.List (D.mapMaybe f (getList xs))
   f $ n = if 0 <= n && n < length (getList f)
           then Just ((getList f) !! n)
           else Nothing
       
 
-newtype WMaybe a b = WMaybe { getMaybe :: Maybe b }
-instance Partial WMaybe () where
-  map f x = WMaybe (liftM f (getMaybe x))
-  mapMaybe f x =  WMaybe (f =<< (getMaybe x))
+newtype Maybe a b = Maybe { getMaybe :: Prelude.Maybe b }
+instance Partial Partial.Maybe () where
+  map f x = Partial.Maybe (liftM f (getMaybe x))
+  mapMaybe f x =  Partial.Maybe (f =<< (getMaybe x))
   x $ z = getMaybe x
 
-newtype WFun a b = WFun { getFun :: a -> Maybe b }
-instance Partial WFun a where
-  map g f  = WFun ((fmap g) Prelude.. (getFun f))
-  mapMaybe g f  = WFun (g <=< (getFun f))
+newtype Fun a b = Fun { getFun :: a -> Prelude.Maybe b }
+instance Partial Partial.Fun a where
+  map g f  = Partial.Fun ((fmap g) Prelude.. (getFun f))
+  mapMaybe g f  = Partial.Fun (g <=< (getFun f))
   ($) = getFun
 

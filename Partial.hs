@@ -19,20 +19,6 @@ class Partial f a where
   (.?)  :: Partial g b => g b c -> f a b -> f a c
   g .? f = Partial.mapMaybe (g $?) f
 
-
--- thanks to /u/brandonchinn178
-instance Partial f a => Functor (f a) where
-  fmap = mapP
-
--- https://elvishjerricco.github.io/2016/10/12/kleisli-functors.html
-class (Monad m, Functor f) => KleisliFunctor m f where
-  kmap :: (a -> m b) -> f a -> f b
-
-instance Partial f a => KleisliFunctor Maybe (f a) where
-  kmap = mapMaybe
-
-
-
 instance (Ord k) => Partial M.Map k where
   mapP = M.map
   mapMaybe = M.mapMaybe
@@ -57,3 +43,15 @@ instance Partial PFun a where
   mapP g f  = PFun ((fmap g) . (getPFun f))
   mapMaybe g f  = PFun (g <=< (getPFun f))
   ($?) = getPFun
+
+-- thanks to /u/brandonchinn178
+instance Partial f a => Functor (f a) where
+  fmap = mapP
+
+-- https://elvishjerricco.github.io/2016/10/12/kleisli-functors.html
+class (Monad m, Functor f) => KleisliFunctor m f where
+  kmap :: (a -> m b) -> f a -> f b
+
+instance Partial f a => KleisliFunctor Maybe (f a) where
+  kmap = mapMaybe
+

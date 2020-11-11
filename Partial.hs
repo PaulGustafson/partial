@@ -1,23 +1,36 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances #-}
+{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, UndecidableInstances #-}
 
 module Partial where
 
 import qualified Data.Map as M
 import Control.Monad
 import qualified Data.Maybe as D
-
+import Data.Functor.Compose
 
 class Partial f a where
   ($?) :: f a b -> a -> Maybe b
   infixl 4 $?
 
   mapMaybe  :: (b -> Maybe c) -> f a b -> f a c
-
+    
   mapP :: (b -> c) -> f a b -> f a c
   mapP f = Partial.mapMaybe (Just . f)
 
   (.?)  :: Partial g b => g b c -> f a b -> f a c
   g .? f = Partial.mapMaybe (g $?) f
+
+
+instance Partial f a => Functor (f a) where
+  fmap = mapP
+
+-- https://elvishjerricco.github.io/2016/10/12/kleisli-functors.html
+class (Monad m, Functor f) => KleisliFunctor m f where
+  kmap :: (a -> m b) -> f a -> f b
+
+instance Partial f a => KleisliFunctor Maybe (f a) where
+  kmap = mapMaybe
+
+
 
 instance (Ord k) => Partial M.Map k where
   mapP = M.map

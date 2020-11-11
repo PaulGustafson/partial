@@ -20,6 +20,7 @@ class Partial f a where
   g .? f = Partial.mapMaybe (g $?) f
 
 
+-- thanks to /u/brandonchinn178
 instance Partial f a => Functor (f a) where
   fmap = mapP
 

@@ -5,7 +5,7 @@ module Partial where
 import qualified Data.Map as M
 import Control.Monad
 import qualified Data.Maybe as D
-import Data.Functor.Compose
+import Control.Arrow
 
 class Partial f a where
   ($?) :: f a b -> a -> Maybe b
@@ -38,13 +38,12 @@ instance Partial PMaybe () where
   mapMaybe f x =  PMaybe (f =<< (getPMaybe x))
   x $? z = getPMaybe x
 
-newtype PFun a b = PFun { getPFun :: a -> Maybe b }
-instance Partial PFun a where
-  mapP g f  = PFun ((fmap g) . (getPFun f))
-  mapMaybe g f  = PFun (g <=< (getPFun f))
-  ($?) = getPFun
+-- thanks to /u/brandonchinn178 
+instance Partial (Kleisli Maybe) a where
+  mapP g f  = Kleisli ((fmap g) . (runKleisli f))
+  mapMaybe g f  = Kleisli (g <=< (runKleisli f))
+  ($?) = runKleisli
 
--- thanks to /u/brandonchinn178
 instance Partial f a => Functor (f a) where
   fmap = mapP
 

@@ -5,17 +5,14 @@ module Partial where
 import qualified Data.Map as M hiding (mapMaybe)
 import Control.Monad
 import Data.Witherable
-
+import Control.Arrow
 
 class (Filterable f) => Partial f where
-  type Index f   -- thanks to /u/dualized
+  type Index f 
   
   ($?) :: f b -> Index f -> Maybe b
   infixl 4 $?
 
-  -- Warning: not always associative! (thanks /u/viercc)
-  -- [a,b] .? ([0,999,1] .? [0,1]) = [a,b] .? [0,999] = [a]
-  -- ([a,b] .? [0,999,1]) .? [0,1] = [a,b] .? [0,1] = [a,b]
   (.?)  :: Partial g => g c -> f (Index g) -> f c
   g .? f = mapMaybe (g $?) f
 
@@ -31,17 +28,10 @@ instance Partial Maybe where
   type Index Maybe = ()
   ($?) = const
 
+instance Filterable (Kleisli Maybe a) where
+  mapMaybe g f = Kleisli (g <=< (runKleisli f))
 
--- same as Kleisli Maybe a, but different Functor instance (I think)
-newtype PFun a b = PFun { getPFun :: a -> Maybe b}
-
-instance Functor (PFun a) where
-  fmap g f  = PFun ((fmap g) . (getPFun f))
-
-instance Filterable (PFun a) where
-  mapMaybe g f = PFun (g <=< (getPFun f))
-
-instance Partial (PFun a) where
-  type Index (PFun a) = a
-  ($?) = getPFun
+instance Partial (Kleisli Maybe a) where
+  type Index (Kleisli Maybe a) = a
+  ($?) = runKleisli
 

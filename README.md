@@ -2,7 +2,7 @@
 
 A basic partial map typeclass.  Instances include Data.Map, List, Maybe a, and the usual partial function type "a -> Maybe b".
 
-Warning: the composition operation (.?) is not always associative.  An example--
+__Warning__: the composition operation (.?) is not always associative.  For example,
 
 ```
 [a,b] .? ([0,999,1] .? [0,1]) = [a,b] .? [0,999] = [a]

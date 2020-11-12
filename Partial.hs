@@ -1,56 +1,47 @@
-{-# LANGUAGE MultiParamTypeClasses, FlexibleInstances, UndecidableInstances #-}
+{-# LANGUAGE TypeFamilies, FlexibleInstances #-}
 
 module Partial where
 
-import qualified Data.Map as M
+import qualified Data.Map as M hiding (mapMaybe)
 import Control.Monad
-import qualified Data.Maybe as D
-import Control.Arrow
+import Data.Witherable
 
-class Partial f a where
-  ($?) :: f a b -> a -> Maybe b
+
+class (Filterable f) => Partial f where
+  type Index f   -- thanks to /u/dualized
+  
+  ($?) :: f b -> Index f -> Maybe b
   infixl 4 $?
 
-  mapMaybe  :: (b -> Maybe c) -> f a b -> f a c
-    
-  mapP :: (b -> c) -> f a b -> f a c
-  mapP f = Partial.mapMaybe (Just . f)
+  -- Warning: not always associative! (thanks /u/viercc)
+  -- [a,b] .? ([0,999,1] .? [0,1]) = [a,b] .? [0,999] = [a]
+  -- ([a,b] .? [0,999,1]) .? [0,1] = [a,b] .? [0,1] = [a,b]
+  (.?)  :: Partial g => g c -> f (Index g) -> f c
+  g .? f = mapMaybe (g $?) f
 
-  (.?)  :: Partial g b => g b c -> f a b -> f a c
-  g .? f = Partial.mapMaybe (g $?) f
-
-instance (Ord k) => Partial M.Map k where
-  mapP = M.map
-  mapMaybe = M.mapMaybe
+instance (Ord k) => Partial (M.Map k) where
+  type Index (M.Map k) = k
   ($?) = flip M.lookup
 
-newtype PList a b = PList { getPList :: [b]} 
-instance Partial PList Int where
-  mapP f xs = PList (Prelude.map f (getPList xs))
-  mapMaybe f xs = PList (D.mapMaybe f (getPList xs))
-  f $? n = if 0 <= n && n < length (getPList f)
-          then Just ((getPList f) !! n)
-          else Nothing
+instance Partial [] where
+  type Index [] = Int
+  f $? n = if 0 <= n && n < length f then Just (f !! n) else Nothing
       
-newtype PMaybe a b = PMaybe { getPMaybe :: Maybe b }
-instance Partial PMaybe () where
-  mapP f x = PMaybe (liftM f (getPMaybe x))
-  mapMaybe f x =  PMaybe (f =<< (getPMaybe x))
-  x $? z = getPMaybe x
+instance Partial Maybe where
+  type Index Maybe = ()
+  ($?) = const
 
--- thanks to /u/brandonchinn178 
-instance Partial (Kleisli Maybe) a where
-  mapP g f  = Kleisli ((fmap g) . (runKleisli f))
-  mapMaybe g f  = Kleisli (g <=< (runKleisli f))
-  ($?) = runKleisli
 
-instance Partial f a => Functor (f a) where
-  fmap = mapP
+-- same as Kleisli Maybe a, but different Functor instance (I think)
+newtype PFun a b = PFun { getPFun :: a -> Maybe b}
 
--- https://elvishjerricco.github.io/2016/10/12/kleisli-functors.html
-class (Monad m, Functor f) => KleisliFunctor m f where
-  kmap :: (a -> m b) -> f a -> f b
+instance Functor (PFun a) where
+  fmap g f  = PFun ((fmap g) . (getPFun f))
 
-instance Partial f a => KleisliFunctor Maybe (f a) where
-  kmap = mapMaybe
+instance Filterable (PFun a) where
+  mapMaybe g f = PFun (g <=< (getPFun f))
+
+instance Partial (PFun a) where
+  type Index (PFun a) = a
+  ($?) = getPFun
 
